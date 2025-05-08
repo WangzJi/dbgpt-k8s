@@ -1,0 +1,695 @@
+apiVersion: v1
+data:
+  dbgpt-app-config.example.toml: |
+    [system]
+    # Load language from environment variable(It is set by the hook)
+    language = "${env:DBGPT_LANG:-zh}"
+    log_level = "INFO"
+    api_keys = []
+    encrypt_key = "your_secret_key"
+
+    # Server Configurations
+    [service.web]
+    host = "0.0.0.0"
+    port = 5670
+
+    [service.web.database]
+    type = "sqlite"
+    path = "pilot/meta_data/dbgpt.db"
+
+    [app]
+    temperature = 0.6
+
+    [[app.configs]]
+    name = "chat_excel"
+    temperature = 0.1
+    duckdb_extensions_dir = []
+    force_install = true
+
+    [[app.configs]]
+    name = "chat_normal"
+    memory = {type="token", max_token_limit=20000}
+
+    [[app.configs]]
+    name = "chat_with_db_qa"
+    schema_retrieve_top_k = 50
+    memory = {type="token", max_token_limit=20000}
+
+    # Model Configurations
+    [models]
+    [[models.llms]]
+    name = "${env:LLM_MODEL_NAME:-gpt-4o}"
+    provider = "${env:LLM_MODEL_PROVIDER:-proxy/openai}"
+    api_base = "${env:OPENAI_API_BASE:-https://api.openai.com/v1}"
+    api_key = "${env:OPENAI_API_KEY}"
+
+    [[models.embeddings]]
+    name = "${env:EMBEDDING_MODEL_NAME:-text-embedding-3-small}"
+    provider = "${env:EMBEDDING_MODEL_PROVIDER:-proxy/openai}"
+    api_url = "${env:EMBEDDING_MODEL_API_URL:-https://api.openai.com/v1/embeddings}"
+    api_key = "${env:OPENAI_API_KEY}"
+  dbgpt-bm25-rag.toml: |
+    [system]
+    # Load language from environment variable(It is set by the hook)
+    language = "${env:DBGPT_LANG:-zh}"
+    log_level = "INFO"
+    api_keys = []
+    encrypt_key = "your_secret_key"
+
+    # Server Configurations
+    [service.web]
+    host = "0.0.0.0"
+    port = 5670
+
+    [service.web.database]
+    type = "sqlite"
+    path = "pilot/meta_data/dbgpt.db"
+
+
+    [rag]
+    chunk_size=1000
+    chunk_overlap=100
+    similarity_top_k=5
+    similarity_score_threshold=0.0
+    max_chunks_once_load=10
+    max_threads=1
+    rerank_top_k=3
+
+    [rag.storage]
+    [rag.storage.vector]
+    type = "chroma"
+    persist_path = "pilot/data"
+
+    [rag.storage.full_text]
+    type = "elasticsearch"
+    host="127.0.0.1"
+    port=9200
+
+
+    # Model Configurations
+    [models]
+    [[models.llms]]
+    name = "${env:LLM_MODEL_NAME:-gpt-4o}"
+    provider = "${env:LLM_MODEL_PROVIDER:-proxy/openai}"
+    api_base = "${env:OPENAI_API_BASE:-https://api.openai.com/v1}"
+    api_key = "${env:OPENAI_API_KEY}"
+
+    [[models.embeddings]]
+    name = "${env:EMBEDDING_MODEL_NAME:-text-embedding-3-small}"
+    provider = "${env:EMBEDDING_MODEL_PROVIDER:-proxy/openai}"
+    api_url = "${env:EMBEDDING_MODEL_API_URL:-https://api.openai.com/v1/embeddings}"
+    api_key = "${env:OPENAI_API_KEY}"
+  dbgpt-cloud-storage.example.toml: |
+    [system]
+    # Load language from environment variable(It is set by the hook)
+    language = "${env:DBGPT_LANG:-zh}"
+    log_level = "INFO"
+    api_keys = []
+    encrypt_key = "your_secret_key"
+
+    # Server Configurations
+    [service.web]
+    host = "0.0.0.0"
+    port = 5670
+
+    [service.web.database]
+    type = "sqlite"
+    path = "pilot/meta_data/dbgpt.db"
+
+    [[serves]]
+    type = "file"
+    # Default backend for file server
+    default_backend = "s3"
+
+    [[serves.backends]]
+    type = "oss"
+    endpoint = "https://oss-cn-beijing.aliyuncs.com"
+    region = "oss-cn-beijing"
+    access_key_id = "${env:OSS_ACCESS_KEY_ID}"
+    access_key_secret = "${env:OSS_ACCESS_KEY_SECRET}"
+    fixed_bucket = "{your_bucket_name}"
+
+    [[serves.backends]]
+    # Use Tencent COS s3 compatible API as the file server
+    type = "s3"
+    endpoint = "https://cos.ap-beijing.myqcloud.com"
+    region = "ap-beijing"
+    access_key_id = "${env:COS_SECRETID}"
+    access_key_secret = "${env:COS_SECRETKEY}"
+    fixed_bucket = "{your_bucket_name}"
+
+    # Model Configurations
+    [models]
+    [[models.llms]]
+    name = "${env:LLM_MODEL_NAME:-gpt-4o}"
+    provider = "${env:LLM_MODEL_PROVIDER:-proxy/openai}"
+    api_base = "${env:OPENAI_API_BASE:-https://api.openai.com/v1}"
+    api_key = "${env:OPENAI_API_KEY}"
+
+    [[models.embeddings]]
+    name = "${env:EMBEDDING_MODEL_NAME:-text-embedding-3-small}"
+    provider = "${env:EMBEDDING_MODEL_PROVIDER:-proxy/openai}"
+    api_url = "${env:EMBEDDING_MODEL_API_URL:-https://api.openai.com/v1/embeddings}"
+    api_key = "${env:OPENAI_API_KEY}"
+  dbgpt-graphrag.toml: |
+    [system]
+    # Load language from environment variable(It is set by the hook)
+    language = "${env:DBGPT_LANG:-zh}"
+    log_level = "INFO"
+    api_keys = []
+    encrypt_key = "your_secret_key"
+
+    # Server Configurations
+    [service.web]
+    host = "0.0.0.0"
+    port = 5670
+
+    [service.web.database]
+    type = "sqlite"
+    path = "pilot/meta_data/dbgpt.db"
+
+
+    [rag]
+    chunk_size=1000
+    chunk_overlap=0
+    similarity_top_k=5
+    similarity_score_threshold=0.0
+    max_chunks_once_load=10
+    max_threads=1
+    rerank_top_k=3
+
+    [rag.storage]
+    [rag.storage.vector]
+    type = "chroma"
+    persist_path = "pilot/data"
+
+    [rag.storage.graph]
+    type = "tugraph"
+    host="127.0.0.1"
+    port=7687
+    username="admin"
+    password="73@TuGraph"
+
+    # enable_summary="True"
+    # community_topk=20
+    # community_score_threshold=0.3
+
+    # triplet_graph_enabled="True"
+    # extract_topk=20
+
+    # document_graph_enabled="True"
+    # knowledge_graph_chunk_search_top_size=20
+    # knowledge_graph_extraction_batch_size=20
+
+    # enable_similarity_search="True"
+    # knowledge_graph_embedding_batch_size=20
+    # similarity_search_topk=5
+    # extract_score_threshold=0.7
+
+    # enable_text_search="True"
+    # text2gql_model_enabled="True"
+    # text2gql_model_name="qwen2.5:latest"
+
+
+
+    # Model Configurations
+    [models]
+    [[models.llms]]
+    name = "${env:LLM_MODEL_NAME:-gpt-4o}"
+    provider = "${env:LLM_MODEL_PROVIDER:-proxy/openai}"
+    api_base = "${env:OPENAI_API_BASE:-https://api.openai.com/v1}"
+    api_key = "${env:OPENAI_API_KEY}"
+
+    [[models.embeddings]]
+    name = "${env:EMBEDDING_MODEL_NAME:-text-embedding-3-small}"
+    provider = "${env:EMBEDDING_MODEL_PROVIDER:-proxy/openai}"
+    api_url = "${env:EMBEDDING_MODEL_API_URL:-https://api.openai.com/v1/embeddings}"
+    api_key = "${env:OPENAI_API_KEY}"
+  dbgpt-local-glm.toml: |
+    [system]
+    # Load language from environment variable(It is set by the hook)
+    language = "${env:DBGPT_LANG:-zh}"
+    api_keys = []
+    encrypt_key = "your_secret_key"
+
+    # Server Configurations
+    [service.web]
+    host = "0.0.0.0"
+    port = 5670
+
+    [service.web.database]
+    type = "sqlite"
+    path = "pilot/meta_data/dbgpt.db"
+
+    [rag.storage]
+    [rag.storage.vector]
+    type = "chroma"
+    persist_path = "pilot/data"
+
+    # Model Configurations
+    [models]
+    [[models.llms]]
+    name = "THUDM/glm-4-9b-chat-hf"
+    provider = "hf"
+    # If not provided, the model will be downloaded from the Hugging Face model hub
+    # uncomment the following line to specify the model path in the local file system
+    # path = "the-model-path-in-the-local-file-system"
+    path = "models/THUDM/glm-4-9b-chat-hf"
+
+    [[models.embeddings]]
+    name = "BAAI/bge-large-zh-v1.5"
+    provider = "hf"
+    # If not provided, the model will be downloaded from the Hugging Face model hub
+    # uncomment the following line to specify the model path in the local file system
+    # path = "the-model-path-in-the-local-file-system"
+    path = "models/BAAI/bge-large-zh-v1.5"
+  dbgpt-local-llama-cpp-server.toml: |
+    [system]
+    # Load language from environment variable(It is set by the hook)
+    language = "${env:DBGPT_LANG:-zh}"
+    api_keys = []
+    encrypt_key = "your_secret_key"
+
+    # Server Configurations
+    [service.web]
+    host = "0.0.0.0"
+    port = 5670
+
+    [service.web.database]
+    type = "sqlite"
+    path = "pilot/meta_data/dbgpt.db"
+
+    [rag.storage]
+    [rag.storage.vector]
+    type = "chroma"
+    persist_path = "pilot/data"
+
+    # Model Configurations
+    [models]
+    [[models.llms]]
+    name = "DeepSeek-R1-Distill-Qwen-1.5B"
+    provider = "llama.cpp.server"
+    # If not provided, the model will be downloaded from the Hugging Face model hub
+    # uncomment the following line to specify the model path in the local file system
+    # https://huggingface.co/bartowski/DeepSeek-R1-Distill-Qwen-1.5B-GGUF
+    # path = "the-model-path-in-the-local-file-system"
+    path = "models/DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_M.gguf"
+
+    [[models.embeddings]]
+    name = "BAAI/bge-large-zh-v1.5"
+    provider = "hf"
+    # If not provided, the model will be downloaded from the Hugging Face model hub
+    # uncomment the following line to specify the model path in the local file system
+    # path = "the-model-path-in-the-local-file-system"
+    path = "models/BAAI/bge-large-zh-v1.5"
+  dbgpt-local-llama-cpp.toml: |+
+    [system]
+    # Load language from environment variable(It is set by the hook)
+    language = "${env:DBGPT_LANG:-zh}"
+    api_keys = []
+    encrypt_key = "your_secret_key"
+
+    # Server Configurations
+    [service.web]
+    host = "0.0.0.0"
+    port = 5670
+
+    [service.web.database]
+    type = "sqlite"
+    path = "pilot/meta_data/dbgpt.db"
+
+    [rag.storage]
+    [rag.storage.vector]
+    type = "chroma"
+    persist_path = "pilot/data"
+
+    # Model Configurations
+    [models]
+    [[models.llms]]
+    name = "DeepSeek-R1-Distill-Qwen-1.5B"
+    provider = "llama.cpp"
+    # If not provided, the model will be downloaded from the Hugging Face model hub
+    # uncomment the following line to specify the model path in the local file system
+    # https://huggingface.co/bartowski/DeepSeek-R1-Distill-Qwen-1.5B-GGUF
+    # path = "the-model-path-in-the-local-file-system"
+    path = "models/DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_M.gguf"
+
+
+    [[models.embeddings]]
+    name = "BAAI/bge-large-zh-v1.5"
+    provider = "hf"
+    # If not provided, the model will be downloaded from the Hugging Face model hub
+    # uncomment the following line to specify the model path in the local file system
+    # path = "the-model-path-in-the-local-file-system"
+    path = "models/BAAI/bge-large-zh-v1.5"
+
+  dbgpt-local-qwen.toml: |+
+    [system]
+    # Load language from environment variable(It is set by the hook)
+    language = "${env:DBGPT_LANG:-zh}"
+    api_keys = []
+    encrypt_key = "your_secret_key"
+
+    # Server Configurations
+    [service.web]
+    host = "0.0.0.0"
+    port = 5670
+
+    [service.web.database]
+    type = "sqlite"
+    path = "pilot/meta_data/dbgpt.db"
+
+    [rag.storage]
+    [rag.storage.vector]
+    type = "chroma"
+    persist_path = "pilot/data"
+
+    # Model Configurations
+    [models]
+    [[models.llms]]
+    name = "Qwen2.5-Coder-0.5B-Instruct"
+    provider = "hf"
+    # If not provided, the model will be downloaded from the Hugging Face model hub
+    # uncomment the following line to specify the model path in the local file system
+    # path = "the-model-path-in-the-local-file-system"
+    path = "models/Qwen2.5-Coder-0.5B-Instruct"
+
+    [[models.embeddings]]
+    name = "BAAI/bge-large-zh-v1.5"
+    provider = "hf"
+    # If not provided, the model will be downloaded from the Hugging Face model hub
+    # uncomment the following line to specify the model path in the local file system
+    # path = "the-model-path-in-the-local-file-system"
+    path = "models/BAAI/bge-large-zh-v1.5"
+
+  dbgpt-local-qwen3.example.toml: |
+    [system]
+    # Load language from environment variable(It is set by the hook)
+    language = "${env:DBGPT_LANG:-zh}"
+    api_keys = []
+    encrypt_key = "your_secret_key"
+
+    # Server Configurations
+    [service.web]
+    host = "0.0.0.0"
+    port = 5670
+
+    [service.web.database]
+    type = "sqlite"
+    path = "pilot/meta_data/dbgpt.db"
+
+    [rag.storage]
+    [rag.storage.vector]
+    type = "chroma"
+    persist_path = "pilot/data"
+
+    # Model Configurations
+    [models]
+    [[models.llms]]
+    name = "Qwen/Qwen3-14B"
+    provider = "hf"
+    # If not provided, the model will be downloaded from the Hugging Face model hub
+    # uncomment the following line to specify the model path in the local file system
+    # path = "the-model-path-in-the-local-file-system"
+    # Force the model to be used in non-thinking mode, set to false
+    # reasoning_model = false
+
+    [[models.embeddings]]
+    name = "BAAI/bge-large-zh-v1.5"
+    provider = "hf"
+    # If not provided, the model will be downloaded from the Hugging Face model hub
+    # uncomment the following line to specify the model path in the local file system
+    # path = "the-model-path-in-the-local-file-system"
+  dbgpt-local-vllm.toml: |+
+    [system]
+    # Load language from environment variable(It is set by the hook)
+    language = "${env:DBGPT_LANG:-zh}"
+    api_keys = []
+    encrypt_key = "your_secret_key"
+
+    # Server Configurations
+    [service.web]
+    host = "0.0.0.0"
+    port = 5670
+
+    [service.web.database]
+    type = "sqlite"
+    path = "pilot/meta_data/dbgpt.db"
+
+    [rag.storage]
+    [rag.storage.vector]
+    type = "chroma"
+    persist_path = "pilot/data"
+
+    # Model Configurations
+    [models]
+    [[models.llms]]
+    name = "DeepSeek-R1-Distill-Qwen-1.5B"
+    provider = "vllm"
+    # If not provided, the model will be downloaded from the Hugging Face model hub
+    # uncomment the following line to specify the model path in the local file system
+    # path = "the-model-path-in-the-local-file-system"
+    path = "models/DeepSeek-R1-Distill-Qwen-1.5B"
+    # dtype = "float32"
+
+    [[models.embeddings]]
+    name = "BAAI/bge-large-zh-v1.5"
+    provider = "hf"
+    # If not provided, the model will be downloaded from the Hugging Face model hub
+    # uncomment the following line to specify the model path in the local file system
+    # path = "the-model-path-in-the-local-file-system"
+    path = "/data/models/bge-large-zh-v1.5"
+
+  dbgpt-proxy-deepseek.toml: |
+    [system]
+    # Load language from environment variable(It is set by the hook)
+    language = "${env:DBGPT_LANG:-zh}"
+    api_keys = []
+    encrypt_key = "your_secret_key"
+
+    # Server Configurations
+    [service.web]
+    host = "0.0.0.0"
+    port = 5670
+
+    [service.web.database]
+    type = "sqlite"
+    path = "pilot/meta_data/dbgpt.db"
+    [service.model.worker]
+    host = "127.0.0.1"
+
+    [rag.storage]
+    [rag.storage.vector]
+    type = "chroma"
+    persist_path = "pilot/data"
+
+    # Model Configurations
+    [models]
+    [[models.llms]]
+    name = "deepseek-reasoner"
+    # name = "deepseek-chat"
+    provider = "proxy/deepseek"
+    api_key = "your_deepseek_api_key"
+
+    [[models.embeddings]]
+    name = "BAAI/bge-large-zh-v1.5"
+    provider = "hf"
+    # If not provided, the model will be downloaded from the Hugging Face model hub
+    # uncomment the following line to specify the model path in the local file system
+    # path = "the-model-path-in-the-local-file-system"
+    path = "models/bge-large-zh-v1.5"
+  dbgpt-proxy-infiniai.toml: "[system]\n# Load language from environment variable(It is set by the hook)\nlanguage = \"${env:DBGPT_LANG:-zh}\"\napi_keys = []\nencrypt_key = \"your_secret_key\"\n\n# Server Configurations\n[service.web]\nhost = \"0.0.0.0\"\nport = 5670\n\n[service.web.database]\ntype = \"sqlite\"\npath = \"pilot/meta_data/dbgpt.db\"\n[service.model.worker]\nhost = \"127.0.0.1\"\n\n[rag.storage]\n[rag.storage.vector]\ntype = \"chroma\"\npersist_path = \"pilot/data\"\n\n# Model Configurations\n[models]\n[[models.llms]]\nname = \"deepseek-v3\"\nprovider = \"proxy/infiniai\"\napi_key = \"${env:INFINIAI_API_KEY}\"\n\n[[models.embeddings]]\nname = \"bge-m3\"\nprovider = \"proxy/openai\"\napi_url = \"https://cloud.infini-ai.com/maas/v1/embeddings\"\napi_key = \"${env:INFINIAI_API_KEY}\"\n\n[[models.rerankers]]\ntype = \"reranker\"\nname = \"bge-reranker-v2-m3\"\nprovider = \"proxy/infiniai\"\napi_key = \"${env:INFINIAI_API_KEY}\" "
+  dbgpt-proxy-ollama.toml: |
+    [system]
+    # Load language from environment variable(It is set by the hook)
+    language = "${env:DBGPT_LANG:-en}"
+    api_keys = []
+    encrypt_key = "your_secret_key"
+
+    # Server Configurations
+    [service.web]
+    host = "0.0.0.0"
+    port = 5670
+
+    [service.web.database]
+    type = "sqlite"
+    path = "pilot/meta_data/dbgpt.db"
+
+    [rag.storage]
+    [rag.storage.vector]
+    type = "chroma"
+    persist_path = "pilot/data"
+
+    # Model Configurations
+    [models]
+    [[models.llms]]
+    name = "deepseek-r1:1.5b"
+    provider = "proxy/ollama"
+    api_base = "http://localhost:11434"
+    api_key = ""
+
+    [[models.embeddings]]
+    name = "bge-m3:latest"
+    provider = "proxy/ollama"
+    api_url = "http://localhost:11434"
+    api_key = ""
+  dbgpt-proxy-openai.toml: |
+    [system]
+    # Load language from environment variable(It is set by the hook)
+    language = "${env:DBGPT_LANG:-en}"
+    api_keys = []
+    encrypt_key = "your_secret_key"
+
+    # Server Configurations
+    [service.web]
+    host = "0.0.0.0"
+    port = 5670
+
+    [service.web.database]
+    type = "sqlite"
+    path = "pilot/meta_data/dbgpt.db"
+
+    [rag.storage]
+    [rag.storage.vector]
+    type = "chroma"
+    persist_path = "pilot/data"
+
+    # Model Configurations
+    [models]
+    [[models.llms]]
+    name = "${env:LLM_MODEL_NAME:-gpt-4o}"
+    provider = "${env:LLM_MODEL_PROVIDER:-proxy/openai}"
+    api_base = "${env:OPENAI_API_BASE:-https://api.openai.com/v1}"
+    api_key = "${env:OPENAI_API_KEY}"
+
+    [[models.embeddings]]
+    name = "${env:EMBEDDING_MODEL_NAME:-text-embedding-3-small}"
+    provider = "${env:EMBEDDING_MODEL_PROVIDER:-proxy/openai}"
+    api_url = "${env:EMBEDDING_MODEL_API_URL:-https://api.openai.com/v1/embeddings}"
+    api_key = "${env:OPENAI_API_KEY}"
+  dbgpt-proxy-siliconflow-mysql.toml: |
+    [system]
+    # Load language from environment variable(It is set by the hook)
+    language = "${env:DBGPT_LANG:-zh}"
+    api_keys = []
+    encrypt_key = "your_secret_key"
+
+    # Server Configurations
+    [service.web]
+    host = "0.0.0.0"
+    port = 5670
+
+    [service.web.database]
+    type = "mysql"
+    host = "${env:MYSQL_HOST:-127.0.0.1}"
+    port = "${env:MYSQL_PORT:-3306}"
+    database = "${env:MYSQL_DATABASE:-dbgpt}"
+    user = "${env:MYSQL_USER:-root}"
+    password ="${env:MYSQL_PASSWORD:-aa123456}"
+
+    [service.model.worker]
+    host = "127.0.0.1"
+
+    [rag.storage]
+    [rag.storage.vector]
+    type = "chroma"
+    persist_path = "pilot/data"
+
+    # Model Configurations
+    [models]
+    [[models.llms]]
+    name = "Qwen/Qwen2.5-Coder-32B-Instruct"
+    provider = "proxy/siliconflow"
+    api_key = "${env:SILICONFLOW_API_KEY}"
+
+    [[models.embeddings]]
+    name = "BAAI/bge-m3"
+    provider = "proxy/siliconflow"
+    api_key = "${env:SILICONFLOW_API_KEY}"
+
+    [[models.rerankers]]
+    type = "reranker"
+    name = "BAAI/bge-reranker-v2-m3"
+    provider = "proxy/siliconflow"
+    api_key = "${env:SILICONFLOW_API_KEY}"
+  dbgpt-proxy-siliconflow.toml: |
+    [system]
+    # Load language from environment variable(It is set by the hook)
+    language = "${env:DBGPT_LANG:-zh}"
+    api_keys = []
+    encrypt_key = "your_secret_key"
+
+    # Server Configurations
+    [service.web]
+    host = "0.0.0.0"
+    port = 5670
+
+    [service.web.database]
+    type = "sqlite"
+    path = "pilot/meta_data/dbgpt.db"
+    [service.model.worker]
+    host = "127.0.0.1"
+
+    [rag.storage]
+    [rag.storage.vector]
+    type = "chroma"
+    persist_path = "pilot/data"
+
+    # Model Configurations
+    [models]
+    [[models.llms]]
+    name = "Qwen/Qwen2.5-Coder-32B-Instruct"
+    provider = "proxy/siliconflow"
+    api_key = "${env:SILICONFLOW_API_KEY}"
+
+    [[models.embeddings]]
+    name = "BAAI/bge-large-zh-v1.5"
+    provider = "proxy/openai"
+    api_url = "https://api.siliconflow.cn/v1/embeddings"
+    api_key = "${env:SILICONFLOW_API_KEY}"
+
+    [[models.rerankers]]
+    type = "reranker"
+    name = "BAAI/bge-reranker-v2-m3"
+    provider = "proxy/siliconflow"
+    api_key = "${env:SILICONFLOW_API_KEY}"
+  dbgpt-proxy-tongyi.toml: |
+    [system]
+    # Load language from environment variable(It is set by the hook)
+    language = "${env:DBGPT_LANG:-en}"
+    api_keys = []
+    encrypt_key = "your_secret_key"
+
+    # Server Configurations
+    [service.web]
+    host = "0.0.0.0"
+    port = 5670
+
+    [service.web.database]
+    type = "sqlite"
+    path = "pilot/meta_data/dbgpt.db"
+
+    [rag.storage]
+    [rag.storage.vector]
+    type = "chroma"
+    persist_path = "pilot/data"
+
+    # Model Configurations
+    [models]
+    [[models.llms]]
+    name = "qwen-plus"
+    provider = "${env:LLM_MODEL_PROVIDER:proxy/tongyi}"
+    api_base = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    api_key = "${env:DASHSCOPE_API_KEY}"
+
+    [[models.embeddings]]
+    name = "text-embedding-v3"
+    provider = "${env:EMBEDDING_MODEL_PROVIDER:proxy/tongyi}"
+    api_url = "https://dashscope.aliyuncs.com/compatible-mode/v1/embeddings"
+    api_key = "${env:DASHSCOPE_API_KEY}"
+  ha-model-cluster.toml: ha
+kind: ConfigMap
+metadata:
+  labels:
+    io.kompose.service: webserver
+  name: webserver-cm0
