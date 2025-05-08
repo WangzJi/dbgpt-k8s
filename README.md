@@ -1,6 +1,6 @@
 # DB-GPT K8s Deployment
 
-这个仓库包含了 DB-GPT 的 Kubernetes 部署配置文件。DB-GPT 是一个开源的数据库智能助手，基于大语言模型实现。
+这个仓库包含了 [DB-GPT](https://github.com/eosphoros-ai/DB-GPT) 的 Kubernetes 部署配置文件。DB-GPT 是一个开源的数据库智能助手，基于大语言模型实现。
 
 ## 功能特点
 
