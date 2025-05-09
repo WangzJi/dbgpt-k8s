@@ -41,7 +41,6 @@ spec:
             - name: MYSQL_USER
               value: root
             - name: SILICONFLOW_API_KEY
-              value: SILICONFLOW_API_KEY
           image: eosphorosai/dbgpt-openai:latest
           name: webserver
           ports:
