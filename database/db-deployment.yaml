@@ -43,9 +43,6 @@ spec:
               subPath: my.cnf
             - mountPath: /docker-entrypoint-initdb.d
               name: db-cm2
-            - mountPath: /docker-entrypoint-initdb.d/dbgpt.sql
-              name: db-cm3
-              subPath: dbgpt.sql
       restartPolicy: Always
       volumes:
         - name: dbgpt-myql-db

@@ -1,5 +1,591 @@
 apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    io.kompose.service: db
+  name: db-cm2
 data:
+  dbgpt.sql: |-
+    CREATE
+    DATABASE IF NOT EXISTS dbgpt;
+    use dbgpt;
+
+    -- For alembic migration tool
+    CREATE TABLE IF NOT EXISTS `alembic_version`
+    (
+        version_num VARCHAR(32) NOT NULL,
+        CONSTRAINT alembic_version_pkc PRIMARY KEY (version_num)
+    ) DEFAULT CHARSET=utf8mb4 ;
+
+    CREATE TABLE IF NOT EXISTS `knowledge_space`
+    (
+        `id`           int          NOT NULL AUTO_INCREMENT COMMENT 'auto increment id',
+        `name`         varchar(100) NOT NULL COMMENT 'knowledge space name',
+        `vector_type`  varchar(50)  NOT NULL COMMENT 'vector type',
+        `domain_type`  varchar(50)  NOT NULL COMMENT 'domain type',
+        `desc`         varchar(500) NOT NULL COMMENT 'description',
+        `owner`        varchar(100) DEFAULT NULL COMMENT 'owner',
+        `context`      TEXT         DEFAULT NULL COMMENT 'context argument',
+        `gmt_created`  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP COMMENT 'created time',
+        `gmt_modified` TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'update time',
+        PRIMARY KEY (`id`),
+        KEY            `idx_name` (`name`) COMMENT 'index:idx_name'
+    ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COMMENT='knowledge space table';
+
+    CREATE TABLE IF NOT EXISTS `knowledge_document`
+    (
+        `id`           int          NOT NULL AUTO_INCREMENT COMMENT 'auto increment id',
+        `doc_name`     varchar(100) NOT NULL COMMENT 'document path name',
+        `doc_type`     varchar(50)  NOT NULL COMMENT 'doc type',
+        `doc_token`    varchar(100) NULL COMMENT 'doc token',
+        `space`        varchar(50)  NOT NULL COMMENT 'knowledge space',
+        `chunk_size`   int          NOT NULL COMMENT 'chunk size',
+        `last_sync`    TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT 'last sync time',
+        `status`       varchar(50)  NOT NULL COMMENT 'status TODO,RUNNING,FAILED,FINISHED',
+        `content`      LONGTEXT     NOT NULL COMMENT 'knowledge embedding sync result',
+        `result`       TEXT NULL COMMENT 'knowledge content',
+        `questions`    TEXT NULL COMMENT 'document related questions',
+        `vector_ids`   LONGTEXT NULL COMMENT 'vector_ids',
+        `summary`      LONGTEXT NULL COMMENT 'knowledge summary',
+        `gmt_created`  TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT 'created time',
+        `gmt_modified` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'update time',
+        PRIMARY KEY (`id`),
+        KEY            `idx_doc_name` (`doc_name`) COMMENT 'index:idx_doc_name'
+    ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COMMENT='knowledge document table';
+
+    CREATE TABLE IF NOT EXISTS `document_chunk`
+    (
+        `id`           int          NOT NULL AUTO_INCREMENT COMMENT 'auto increment id',
+        `doc_name`     varchar(100) NOT NULL COMMENT 'document path name',
+        `doc_type`     varchar(50)  NOT NULL COMMENT 'doc type',
+        `document_id`  int          NOT NULL COMMENT 'document parent id',
+        `content`      longtext     NOT NULL COMMENT 'chunk content',
+        `questions`    text         NULL COMMENT 'chunk related questions',
+        `meta_info`    text NOT NULL COMMENT 'metadata info',
+        `gmt_created`  timestamp NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'created time',
+        `gmt_modified` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'update time',
+        PRIMARY KEY (`id`),
+        KEY            `idx_document_id` (`document_id`) COMMENT 'index:document_id'
+    ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COMMENT='knowledge document chunk detail';
+
+
+    CREATE TABLE IF NOT EXISTS `connect_config`
+    (
+        `id`       int          NOT NULL AUTO_INCREMENT COMMENT 'autoincrement id',
+        `db_type`  varchar(255) NOT NULL COMMENT 'db type',
+        `db_name`  varchar(255) NOT NULL COMMENT 'db name',
+        `db_path`  varchar(255) DEFAULT NULL COMMENT 'file db path',
+        `db_host`  varchar(255) DEFAULT NULL COMMENT 'db connect host(not file db)',
+        `db_port`  varchar(255) DEFAULT NULL COMMENT 'db cnnect port(not file db)',
+        `db_user`  varchar(255) DEFAULT NULL COMMENT 'db user',
+        `db_pwd`   varchar(255) DEFAULT NULL COMMENT 'db password',
+        `comment`  text COMMENT 'db comment',
+        `sys_code` varchar(128) DEFAULT NULL COMMENT 'System code',
+        `user_name`  varchar(255) DEFAULT NULL COMMENT 'user name',
+        `user_id`  varchar(255) DEFAULT NULL COMMENT 'user id',
+        `gmt_created` datetime DEFAULT CURRENT_TIMESTAMP COMMENT 'Record creation time',
+        `gmt_modified` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Record update time',
+        `ext_config` text COMMENT 'Extended configuration, json format',
+        PRIMARY KEY (`id`),
+        UNIQUE KEY `uk_db` (`db_name`),
+        KEY        `idx_q_db_type` (`db_type`)
+    ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COMMENT 'Connection confi';
+
+    CREATE TABLE IF NOT EXISTS `chat_history`
+    (
+        `id`        int                                     NOT NULL AUTO_INCREMENT COMMENT 'autoincrement id',
+        `conv_uid`  varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'Conversation record unique id',
+        `chat_mode` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'Conversation scene mode',
+        `summary`   longtext COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'Conversation record summary',
+        `user_name` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'interlocutor',
+        `messages`  text COLLATE utf8mb4_unicode_ci COMMENT 'Conversation details',
+        `message_ids` text COLLATE utf8mb4_unicode_ci COMMENT 'Message id list, split by comma',
+        `app_code` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'App unique code',
+        `sys_code`  varchar(128)                            DEFAULT NULL COMMENT 'System code',
+        `gmt_created`  timestamp NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'created time',
+        `gmt_modified` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'update time',
+        UNIQUE KEY `conv_uid` (`conv_uid`),
+        PRIMARY KEY (`id`),
+        KEY `idx_chat_his_app_code` (`app_code`)
+    ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT 'Chat history';
+
+    CREATE TABLE IF NOT EXISTS `chat_history_message`
+    (
+        `id`             int                                     NOT NULL AUTO_INCREMENT COMMENT 'autoincrement id',
+        `conv_uid`       varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'Conversation record unique id',
+        `index`          int                                     NOT NULL COMMENT 'Message index',
+        `round_index`    int                                     NOT NULL COMMENT 'Round of conversation',
+        `message_detail` longtext COLLATE utf8mb4_unicode_ci COMMENT 'Message details, json format',
+        `gmt_created`  timestamp NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'created time',
+        `gmt_modified` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'update time',
+        UNIQUE KEY `message_uid_index` (`conv_uid`, `index`),
+        PRIMARY KEY (`id`)
+    ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT 'Chat history message';
+
+
+    CREATE TABLE IF NOT EXISTS `chat_feed_back`
+    (
+        `id`              bigint(20) NOT NULL AUTO_INCREMENT,
+        `conv_uid`        varchar(128) DEFAULT NULL COMMENT 'Conversation ID',
+        `conv_index`      int(4) DEFAULT NULL COMMENT 'Round of conversation',
+        `score`           int(1) DEFAULT NULL COMMENT 'Score of user',
+        `ques_type`       varchar(32)  DEFAULT NULL COMMENT 'User question category',
+        `question`        longtext     DEFAULT NULL COMMENT 'User question',
+        `knowledge_space` varchar(128) DEFAULT NULL COMMENT 'Knowledge space name',
+        `messages`        longtext     DEFAULT NULL COMMENT 'The details of user feedback',
+        `message_id`      varchar(255)  NULL COMMENT 'Message id',
+        `feedback_type`   varchar(50)  NULL COMMENT 'Feedback type like or unlike',
+        `reason_types`    varchar(255)  NULL COMMENT 'Feedback reason categories',
+        `remark`          text          NULL COMMENT 'Feedback remark',
+        `user_code`       varchar(128)  NULL COMMENT 'User code',
+        `user_name`       varchar(128) DEFAULT NULL COMMENT 'User name',
+        `gmt_created`     timestamp NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'created time',
+        `gmt_modified`    timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'update time',
+        PRIMARY KEY (`id`),
+        UNIQUE KEY `uk_conv` (`conv_uid`,`conv_index`),
+        KEY               `idx_conv` (`conv_uid`,`conv_index`)
+    ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COMMENT='User feedback table';
+
+
+    CREATE TABLE IF NOT EXISTS `my_plugin`
+    (
+        `id`          int                                     NOT NULL AUTO_INCREMENT COMMENT 'autoincrement id',
+        `tenant`      varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'user tenant',
+        `user_code`   varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'user code',
+        `user_name`   varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'user name',
+        `name`        varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'plugin name',
+        `file_name`   varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'plugin package file name',
+        `type`        varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'plugin type',
+        `version`     varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'plugin version',
+        `use_count`   int                                     DEFAULT NULL COMMENT 'plugin total use count',
+        `succ_count`  int                                     DEFAULT NULL COMMENT 'plugin total success count',
+        `sys_code`    varchar(128)                            DEFAULT NULL COMMENT 'System code',
+        `gmt_created` TIMESTAMP                               DEFAULT CURRENT_TIMESTAMP COMMENT 'plugin install time',
+        PRIMARY KEY (`id`),
+        UNIQUE KEY `name` (`name`)
+    ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='User plugin table';
+
+    CREATE TABLE IF NOT EXISTS `plugin_hub`
+    (
+        `id`              int                                     NOT NULL AUTO_INCREMENT COMMENT 'autoincrement id',
+        `name`            varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'plugin name',
+        `description`     varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'plugin description',
+        `author`          varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'plugin author',
+        `email`           varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'plugin author email',
+        `type`            varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'plugin type',
+        `version`         varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'plugin version',
+        `storage_channel` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'plugin storage channel',
+        `storage_url`     varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'plugin download url',
+        `download_param`  varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'plugin download param',
+        `gmt_created`     TIMESTAMP                               DEFAULT CURRENT_TIMESTAMP COMMENT 'plugin upload time',
+        `installed`       int                                     DEFAULT NULL COMMENT 'plugin already installed count',
+        PRIMARY KEY (`id`),
+        UNIQUE KEY `name` (`name`)
+    ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Plugin Hub table';
+
+
+    CREATE TABLE IF NOT EXISTS `prompt_manage`
+    (
+        `id`             int(11) NOT NULL AUTO_INCREMENT,
+        `chat_scene`     varchar(100) DEFAULT NULL COMMENT 'Chat scene',
+        `sub_chat_scene` varchar(100) DEFAULT NULL COMMENT 'Sub chat scene',
+        `prompt_type`    varchar(100) DEFAULT NULL COMMENT 'Prompt type: common or private',
+        `prompt_name`    varchar(256) DEFAULT NULL COMMENT 'prompt name',
+        `prompt_code`    varchar(256) DEFAULT NULL COMMENT 'prompt code',
+        `content`        longtext COMMENT 'Prompt content',
+        `input_variables` varchar(1024) DEFAULT NULL COMMENT 'Prompt input variables(split by comma))',
+        `response_schema` text  DEFAULT NULL COMMENT 'Prompt response schema',
+        `model` varchar(128) DEFAULT NULL COMMENT 'Prompt model name(we can use different models for different prompt)',
+        `prompt_language` varchar(32) DEFAULT NULL COMMENT 'Prompt language(eg:en, zh-cn)',
+        `prompt_format` varchar(32) DEFAULT 'f-string' COMMENT 'Prompt format(eg: f-string, jinja2)',
+        `prompt_desc`    varchar(512) DEFAULT NULL COMMENT 'Prompt description',
+        `user_code`     varchar(128) DEFAULT NULL COMMENT 'User code',
+        `user_name`      varchar(128) DEFAULT NULL COMMENT 'User name',
+        `sys_code`       varchar(128)                            DEFAULT NULL COMMENT 'System code',
+        `gmt_created`    timestamp NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'created time',
+        `gmt_modified`   timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'update time',
+        PRIMARY KEY (`id`),
+        UNIQUE KEY `prompt_name_uiq` (`prompt_name`, `sys_code`, `prompt_language`, `model`),
+        KEY              `gmt_created_idx` (`gmt_created`)
+    ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Prompt management table';
+
+
+
+     CREATE TABLE IF NOT EXISTS `gpts_conversations` (
+      `id` int(11) NOT NULL AUTO_INCREMENT COMMENT 'autoincrement id',
+      `conv_id` varchar(255) NOT NULL COMMENT 'The unique id of the conversation record',
+      `user_goal` text NOT NULL COMMENT 'User''s goals content',
+      `gpts_name` varchar(255) NOT NULL COMMENT 'The gpts name',
+      `state` varchar(255) DEFAULT NULL COMMENT 'The gpts state',
+      `max_auto_reply_round` int(11) NOT NULL COMMENT 'max auto reply round',
+      `auto_reply_count` int(11) NOT NULL COMMENT 'auto reply count',
+      `user_code` varchar(255) DEFAULT NULL COMMENT 'user code',
+      `sys_code` varchar(255) DEFAULT NULL COMMENT 'system app ',
+      `created_at` datetime DEFAULT NULL COMMENT 'create time',
+      `updated_at` datetime DEFAULT NULL COMMENT 'last update time',
+      `team_mode` varchar(255) NULL COMMENT 'agent team work mode',
+
+      PRIMARY KEY (`id`),
+      UNIQUE KEY `uk_gpts_conversations` (`conv_id`),
+      KEY `idx_gpts_name` (`gpts_name`)
+    ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COMMENT="gpt conversations";
+
+    CREATE TABLE IF NOT EXISTS `gpts_instance` (
+      `id` int(11) NOT NULL AUTO_INCREMENT COMMENT 'autoincrement id',
+      `gpts_name` varchar(255) NOT NULL COMMENT 'Current AI assistant name',
+      `gpts_describe` varchar(2255) NOT NULL COMMENT 'Current AI assistant describe',
+      `resource_db` text COMMENT 'List of structured database names contained in the current gpts',
+      `resource_internet` text COMMENT 'Is it possible to retrieve information from the internet',
+      `resource_knowledge` text COMMENT 'List of unstructured database names contained in the current gpts',
+      `gpts_agents` varchar(1000) DEFAULT NULL COMMENT 'List of agents names contained in the current gpts',
+      `gpts_models` varchar(1000) DEFAULT NULL COMMENT 'List of llm model names contained in the current gpts',
+      `language` varchar(100) DEFAULT NULL COMMENT 'gpts language',
+      `user_code` varchar(255) NOT NULL COMMENT 'user code',
+      `sys_code` varchar(255) DEFAULT NULL COMMENT 'system app code',
+      `created_at` datetime DEFAULT NULL COMMENT 'create time',
+      `updated_at` datetime DEFAULT NULL COMMENT 'last update time',
+      `team_mode` varchar(255) NOT NULL COMMENT 'Team work mode',
+      `is_sustainable` tinyint(1) NOT NULL COMMENT 'Applications for sustainable dialogue',
+      PRIMARY KEY (`id`),
+      UNIQUE KEY `uk_gpts` (`gpts_name`)
+    ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COMMENT="gpts instance";
+
+    CREATE TABLE `gpts_messages` (
+      `id` int(11) NOT NULL AUTO_INCREMENT COMMENT 'autoincrement id',
+      `conv_id` varchar(255) NOT NULL COMMENT 'The unique id of the conversation record',
+      `sender` varchar(255) NOT NULL COMMENT 'Who speaking in the current conversation turn',
+      `receiver` varchar(255) NOT NULL COMMENT 'Who receive message in the current conversation turn',
+      `model_name` varchar(255) DEFAULT NULL COMMENT 'message generate model',
+      `rounds` int(11) NOT NULL COMMENT 'dialogue turns',
+      `is_success` int(4)  NULL DEFAULT 0 COMMENT 'agent message is success',
+      `app_code` varchar(255) NOT NULL COMMENT 'Current AI assistant code',
+      `app_name` varchar(255) NOT NULL COMMENT 'Current AI assistant name',
+      `content` text COMMENT 'Content of the speech',
+      `current_goal` text COMMENT 'The target corresponding to the current message',
+      `context` text COMMENT 'Current conversation context',
+      `review_info` text COMMENT 'Current conversation review info',
+      `action_report` longtext COMMENT 'Current conversation action report',
+      `resource_info` text DEFAULT NULL  COMMENT 'Current conversation resource info',
+      `role` varchar(255) DEFAULT NULL COMMENT 'The role of the current message content',
+      `created_at` datetime DEFAULT NULL COMMENT 'create time',
+      `updated_at` datetime DEFAULT NULL COMMENT 'last update time',
+      PRIMARY KEY (`id`),
+      KEY `idx_q_messages` (`conv_id`,`rounds`,`sender`)
+    ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COMMENT="gpts message";
+
+
+    CREATE TABLE `gpts_plans` (
+      `id` int(11) NOT NULL AUTO_INCREMENT COMMENT 'autoincrement id',
+      `conv_id` varchar(255) NOT NULL COMMENT 'The unique id of the conversation record',
+      `sub_task_num` int(11) NOT NULL COMMENT 'Subtask number',
+      `sub_task_title` varchar(255) NOT NULL COMMENT 'subtask title',
+      `sub_task_content` text NOT NULL COMMENT 'subtask content',
+      `sub_task_agent` varchar(255) DEFAULT NULL COMMENT 'Available agents corresponding to subtasks',
+      `resource_name` varchar(255) DEFAULT NULL COMMENT 'resource name',
+      `rely` varchar(255) DEFAULT NULL COMMENT 'Subtask dependencies，like: 1,2,3',
+      `agent_model` varchar(255) DEFAULT NULL COMMENT 'LLM model used by subtask processing agents',
+      `retry_times` int(11) DEFAULT NULL COMMENT 'number of retries',
+      `max_retry_times` int(11) DEFAULT NULL COMMENT 'Maximum number of retries',
+      `state` varchar(255) DEFAULT NULL COMMENT 'subtask status',
+      `result` longtext COMMENT 'subtask result',
+      `created_at` datetime DEFAULT NULL COMMENT 'create time',
+      `updated_at` datetime DEFAULT NULL COMMENT 'last update time',
+      PRIMARY KEY (`id`),
+      UNIQUE KEY `uk_sub_task` (`conv_id`,`sub_task_num`)
+    ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COMMENT="gpt plan";
+
+    -- dbgpt.dbgpt_serve_flow definition
+    CREATE TABLE `dbgpt_serve_flow` (
+      `id` int NOT NULL AUTO_INCREMENT COMMENT 'Auto increment id',
+      `uid` varchar(128) NOT NULL COMMENT 'Unique id',
+      `dag_id` varchar(128) DEFAULT NULL COMMENT 'DAG id',
+      `name` varchar(128) DEFAULT NULL COMMENT 'Flow name',
+      `flow_data` longtext COMMENT 'Flow data, JSON format',
+      `user_name` varchar(128) DEFAULT NULL COMMENT 'User name',
+      `sys_code` varchar(128) DEFAULT NULL COMMENT 'System code',
+      `gmt_created` datetime DEFAULT NULL COMMENT 'Record creation time',
+      `gmt_modified` datetime DEFAULT NULL COMMENT 'Record update time',
+      `flow_category` varchar(64) DEFAULT NULL COMMENT 'Flow category',
+      `description` varchar(512) DEFAULT NULL COMMENT 'Flow description',
+      `state` varchar(32) DEFAULT NULL COMMENT 'Flow state',
+      `error_message` varchar(512) NULL comment 'Error message',
+      `source` varchar(64) DEFAULT NULL COMMENT 'Flow source',
+      `source_url` varchar(512) DEFAULT NULL COMMENT 'Flow source url',
+      `version` varchar(32) DEFAULT NULL COMMENT 'Flow version',
+      `define_type` varchar(32) null comment 'Flow define type(json or python)',
+      `label` varchar(128) DEFAULT NULL COMMENT 'Flow label',
+      `editable` int DEFAULT NULL COMMENT 'Editable, 0: editable, 1: not editable',
+      `variables` text DEFAULT NULL COMMENT 'Flow variables, JSON format',
+      PRIMARY KEY (`id`),
+      UNIQUE KEY `uk_uid` (`uid`),
+      KEY `ix_dbgpt_serve_flow_sys_code` (`sys_code`),
+      KEY `ix_dbgpt_serve_flow_uid` (`uid`),
+      KEY `ix_dbgpt_serve_flow_dag_id` (`dag_id`),
+      KEY `ix_dbgpt_serve_flow_user_name` (`user_name`),
+      KEY `ix_dbgpt_serve_flow_name` (`name`)
+    ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+    -- dbgpt.dbgpt_serve_file definition
+    CREATE TABLE `dbgpt_serve_file` (
+      `id` int NOT NULL AUTO_INCREMENT COMMENT 'Auto increment id',
+      `bucket` varchar(255) NOT NULL COMMENT 'Bucket name',
+      `file_id` varchar(255) NOT NULL COMMENT 'File id',
+      `file_name` varchar(256) NOT NULL COMMENT 'File name',
+      `file_size` int DEFAULT NULL COMMENT 'File size',
+      `storage_type` varchar(32) NOT NULL COMMENT 'Storage type',
+      `storage_path` varchar(512) NOT NULL COMMENT 'Storage path',
+      `uri` varchar(512) NOT NULL COMMENT 'File URI',
+      `custom_metadata` text DEFAULT NULL COMMENT 'Custom metadata, JSON format',
+      `file_hash` varchar(128) DEFAULT NULL COMMENT 'File hash',
+      `user_name` varchar(128) DEFAULT NULL COMMENT 'User name',
+      `sys_code` varchar(128) DEFAULT NULL COMMENT 'System code',
+      `gmt_created` datetime DEFAULT CURRENT_TIMESTAMP COMMENT 'Record creation time',
+      `gmt_modified` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Record update time',
+      PRIMARY KEY (`id`),
+      UNIQUE KEY `uk_bucket_file_id` (`bucket`, `file_id`)
+    ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+    -- dbgpt.dbgpt_serve_variables definition
+    CREATE TABLE `dbgpt_serve_variables` (
+      `id` int NOT NULL AUTO_INCREMENT COMMENT 'Auto increment id',
+      `key` varchar(128) NOT NULL COMMENT 'Variable key',
+      `name` varchar(128) DEFAULT NULL COMMENT 'Variable name',
+      `label` varchar(128) DEFAULT NULL COMMENT 'Variable label',
+      `value` text DEFAULT NULL COMMENT 'Variable value, JSON format',
+      `value_type` varchar(32) DEFAULT NULL COMMENT 'Variable value type(string, int, float, bool)',
+      `category` varchar(32) DEFAULT 'common' COMMENT 'Variable category(common or secret)',
+      `encryption_method` varchar(32) DEFAULT NULL COMMENT 'Variable encryption method(fernet, simple, rsa, aes)',
+      `salt` varchar(128) DEFAULT NULL COMMENT 'Variable salt',
+      `scope` varchar(32) DEFAULT 'global' COMMENT 'Variable scope(global,flow,app,agent,datasource,flow_priv,agent_priv, ""etc)',
+      `scope_key` varchar(256) DEFAULT NULL COMMENT 'Variable scope key, default is empty, for scope is "flow_priv", the scope_key is dag id of flow',
+      `enabled` int DEFAULT 1 COMMENT 'Variable enabled, 0: disabled, 1: enabled',
+      `description` text DEFAULT NULL COMMENT 'Variable description',
+      `user_name` varchar(128) DEFAULT NULL COMMENT 'User name',
+      `sys_code` varchar(128) DEFAULT NULL COMMENT 'System code',
+      `gmt_created` datetime DEFAULT CURRENT_TIMESTAMP COMMENT 'Record creation time',
+      `gmt_modified` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Record update time',
+      PRIMARY KEY (`id`),
+      KEY `ix_your_table_name_key` (`key`),
+      KEY `ix_your_table_name_name` (`name`)
+    ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+    CREATE TABLE `dbgpt_serve_model` (
+      `id` int NOT NULL AUTO_INCREMENT COMMENT 'Auto increment id',
+      `host` varchar(255) NOT NULL COMMENT 'The model worker host',
+      `port` int NOT NULL COMMENT 'The model worker port',
+      `model` varchar(255) NOT NULL COMMENT 'The model name',
+      `provider` varchar(255) NOT NULL COMMENT 'The model provider',
+      `worker_type` varchar(255) NOT NULL COMMENT 'The worker type',
+      `params` text NOT NULL COMMENT 'The model parameters, JSON format',
+      `enabled` int DEFAULT 1 COMMENT 'Whether the model is enabled, if it is enabled, it will be started when the system starts, 1 is enabled, 0 is disabled',
+      `worker_name` varchar(255) DEFAULT NULL COMMENT 'The worker name',
+      `description` text DEFAULT NULL COMMENT 'The model description',
+      `user_name` varchar(128) DEFAULT NULL COMMENT 'User name',
+      `sys_code` varchar(128) DEFAULT NULL COMMENT 'System code',
+      `gmt_created` datetime DEFAULT CURRENT_TIMESTAMP COMMENT 'Record creation time',
+      `gmt_modified` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Record update time',
+      PRIMARY KEY (`id`),
+      KEY `idx_user_name` (`user_name`),
+      KEY `idx_sys_code` (`sys_code`),
+      UNIQUE KEY `uk_model_provider_type` (`model`, `provider`, `worker_type`)
+    ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Model persistence table';
+
+    -- dbgpt.gpts_app definition
+    CREATE TABLE `gpts_app` (
+      `id` int NOT NULL AUTO_INCREMENT COMMENT 'autoincrement id',
+      `app_code` varchar(255) NOT NULL COMMENT 'Current AI assistant code',
+      `app_name` varchar(255) NOT NULL COMMENT 'Current AI assistant name',
+      `app_describe` varchar(2255) NOT NULL COMMENT 'Current AI assistant describe',
+      `language` varchar(100) NOT NULL COMMENT 'gpts language',
+      `team_mode` varchar(255) NOT NULL COMMENT 'Team work mode',
+      `team_context` text COMMENT 'The execution logic and team member content that teams with different working modes rely on',
+      `user_code` varchar(255) DEFAULT NULL COMMENT 'user code',
+      `sys_code` varchar(255) DEFAULT NULL COMMENT 'system app code',
+      `created_at` datetime DEFAULT NULL COMMENT 'create time',
+      `updated_at` datetime DEFAULT NULL COMMENT 'last update time',
+      `icon` varchar(1024) DEFAULT NULL COMMENT 'app icon, url',
+      `published` varchar(64) DEFAULT 'false' COMMENT 'Has it been published?',
+      `param_need` text DEFAULT NULL COMMENT 'Parameter information supported by the application',
+      `admins` text DEFAULT NULL COMMENT 'administrator',
+      PRIMARY KEY (`id`),
+      UNIQUE KEY `uk_gpts_app` (`app_name`)
+    ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+    CREATE TABLE `gpts_app_collection` (
+      `id` int(11) NOT NULL AUTO_INCREMENT COMMENT 'autoincrement id',
+      `app_code` varchar(255) NOT NULL COMMENT 'Current AI assistant code',
+      `user_code` int(11) NOT NULL COMMENT 'user code',
+      `sys_code` varchar(255) NULL COMMENT 'system app code',
+      `created_at` datetime DEFAULT NULL COMMENT 'create time',
+      `updated_at` datetime DEFAULT NULL COMMENT 'last update time',
+      PRIMARY KEY (`id`),
+      KEY `idx_app_code` (`app_code`),
+      KEY `idx_user_code` (`user_code`)
+    ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COMMENT="gpt collections";
+
+    -- dbgpt.gpts_app_detail definition
+    CREATE TABLE `gpts_app_detail` (
+      `id` int NOT NULL AUTO_INCREMENT COMMENT 'autoincrement id',
+      `app_code` varchar(255) NOT NULL COMMENT 'Current AI assistant code',
+      `app_name` varchar(255) NOT NULL COMMENT 'Current AI assistant name',
+      `agent_name` varchar(255) NOT NULL COMMENT ' Agent name',
+      `node_id` varchar(255) NOT NULL COMMENT 'Current AI assistant Agent Node id',
+      `resources` text COMMENT 'Agent bind  resource',
+      `prompt_template` text COMMENT 'Agent bind  template',
+      `llm_strategy` varchar(25) DEFAULT NULL COMMENT 'Agent use llm strategy',
+      `llm_strategy_value` text COMMENT 'Agent use llm strategy value',
+      `created_at` datetime DEFAULT NULL COMMENT 'create time',
+      `updated_at` datetime DEFAULT NULL COMMENT 'last update time',
+      PRIMARY KEY (`id`),
+      UNIQUE KEY `uk_gpts_app_agent_node` (`app_name`,`agent_name`,`node_id`)
+    ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+    -- For deploy model cluster of DB-GPT(StorageModelRegistry)
+    CREATE TABLE IF NOT EXISTS `dbgpt_cluster_registry_instance` (
+      `id` int(11) NOT NULL AUTO_INCREMENT COMMENT 'Auto increment id',
+      `model_name` varchar(128) NOT NULL COMMENT 'Model name',
+      `host` varchar(128) NOT NULL COMMENT 'Host of the model',
+      `port` int(11) NOT NULL COMMENT 'Port of the model',
+      `weight` float DEFAULT 1.0 COMMENT 'Weight of the model',
+      `check_healthy` tinyint(1) DEFAULT 1 COMMENT 'Whether to check the health of the model',
+      `healthy` tinyint(1) DEFAULT 0 COMMENT 'Whether the model is healthy',
+      `enabled` tinyint(1) DEFAULT 1 COMMENT 'Whether the model is enabled',
+      `prompt_template` varchar(128) DEFAULT NULL COMMENT 'Prompt template for the model instance',
+      `last_heartbeat` datetime DEFAULT NULL COMMENT 'Last heartbeat time of the model instance',
+      `user_name` varchar(128) DEFAULT NULL COMMENT 'User name',
+      `sys_code` varchar(128) DEFAULT NULL COMMENT 'System code',
+      `gmt_created` datetime DEFAULT CURRENT_TIMESTAMP COMMENT 'Record creation time',
+      `gmt_modified` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Record update time',
+      PRIMARY KEY (`id`),
+      UNIQUE KEY `uk_model_instance` (`model_name`, `host`, `port`, `sys_code`)
+    ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COMMENT='Cluster model instance table, for registering and managing model instances';
+
+    -- dbgpt.recommend_question definition
+    CREATE TABLE `recommend_question` (
+      `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT COMMENT 'autoincrement id',
+      `gmt_create` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'create time',
+      `gmt_modified` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'last update time',
+      `app_code` varchar(255) NOT NULL COMMENT 'Current AI assistant code',
+      `question` text DEFAULT NULL COMMENT 'question',
+      `user_code` varchar(255) NOT NULL COMMENT 'user code',
+      `sys_code` varchar(255) NULL COMMENT 'system app code',
+      `valid` varchar(10) DEFAULT 'true' COMMENT 'is it effective，true/false',
+      `chat_mode` varchar(255) DEFAULT NULL COMMENT 'Conversation scene mode，chat_knowledge...',
+      `params` text DEFAULT NULL COMMENT 'question param',
+      `is_hot_question` varchar(10) DEFAULT 'false' COMMENT 'Is it a popular recommendation question?',
+      PRIMARY KEY (`id`),
+      KEY `idx_rec_q_app_code` (`app_code`)
+    ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT="AI application related recommendation issues";
+
+    -- dbgpt.user_recent_apps definition
+    CREATE TABLE `user_recent_apps` (
+      `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT COMMENT 'autoincrement id',
+      `gmt_create` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'create time',
+      `gmt_modified` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'last update time',
+      `app_code` varchar(255) NOT NULL COMMENT 'AI assistant code',
+      `last_accessed` timestamp NULL DEFAULT NULL COMMENT 'User recent usage time',
+      `user_code` varchar(255) DEFAULT NULL COMMENT 'user code',
+      `sys_code` varchar(255) DEFAULT NULL COMMENT 'system app code',
+      PRIMARY KEY (`id`),
+      KEY `idx_user_r_app_code` (`app_code`),
+      KEY `idx_last_accessed` (`last_accessed`),
+      KEY `idx_user_code` (`user_code`)
+    ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='User recently used apps';
+
+    -- dbgpt.dbgpt_serve_dbgpts_my definition
+    CREATE TABLE `dbgpt_serve_dbgpts_my` (
+      `id` int NOT NULL AUTO_INCREMENT COMMENT 'autoincrement id',
+      `name` varchar(255)  NOT NULL COMMENT 'plugin name',
+      `user_code` varchar(255)  DEFAULT NULL COMMENT 'user code',
+      `user_name` varchar(255)  DEFAULT NULL COMMENT 'user name',
+      `file_name` varchar(255)  NOT NULL COMMENT 'plugin package file name',
+      `type` varchar(255)  DEFAULT NULL COMMENT 'plugin type',
+      `version` varchar(255)  DEFAULT NULL COMMENT 'plugin version',
+      `use_count` int DEFAULT NULL COMMENT 'plugin total use count',
+      `succ_count` int DEFAULT NULL COMMENT 'plugin total success count',
+      `sys_code` varchar(128) DEFAULT NULL COMMENT 'System code',
+      `gmt_created` TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT 'plugin install time',
+      `gmt_modified` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'update time',
+      PRIMARY KEY (`id`),
+      UNIQUE KEY `name` (`name`, `user_name`),
+      KEY `ix_my_plugin_sys_code` (`sys_code`)
+    ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+    -- dbgpt.dbgpt_serve_dbgpts_hub definition
+    CREATE TABLE `dbgpt_serve_dbgpts_hub` (
+      `id` int NOT NULL AUTO_INCREMENT COMMENT 'autoincrement id',
+      `name` varchar(255) NOT NULL COMMENT 'plugin name',
+      `description` varchar(255)  NULL COMMENT 'plugin description',
+      `author` varchar(255) DEFAULT NULL COMMENT 'plugin author',
+      `email` varchar(255) DEFAULT NULL COMMENT 'plugin author email',
+      `type` varchar(255) DEFAULT NULL COMMENT 'plugin type',
+      `version` varchar(255) DEFAULT NULL COMMENT 'plugin version',
+      `storage_channel` varchar(255) DEFAULT NULL COMMENT 'plugin storage channel',
+      `storage_url` varchar(255) DEFAULT NULL COMMENT 'plugin download url',
+      `download_param` varchar(255) DEFAULT NULL COMMENT 'plugin download param',
+      `gmt_created` TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT 'plugin upload time',
+      `gmt_modified` TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'update time',
+      `installed` int DEFAULT NULL COMMENT 'plugin already installed count',
+      PRIMARY KEY (`id`),
+      UNIQUE KEY `name` (`name`)
+    ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+    CREATE
+    DATABASE IF NOT EXISTS EXAMPLE_1;
+    use EXAMPLE_1;
+    CREATE TABLE IF NOT EXISTS `users`
+    (
+        `id`       int         NOT NULL AUTO_INCREMENT,
+        `username` varchar(50) NOT NULL COMMENT '用户名',
+        `password` varchar(50) NOT NULL COMMENT '密码',
+        `email`    varchar(50) NOT NULL COMMENT '邮箱',
+        `phone`    varchar(20) DEFAULT NULL COMMENT '电话',
+        PRIMARY KEY (`id`),
+        KEY        `idx_username` (`username`) COMMENT '索引：按用户名查询'
+    ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COMMENT='聊天用户表';
+
+    INSERT INTO users (username, password, email, phone)
+    VALUES ('user_1', 'password_1', 'user_1@example.com', '12345678901');
+    INSERT INTO users (username, password, email, phone)
+    VALUES ('user_2', 'password_2', 'user_2@example.com', '12345678902');
+    INSERT INTO users (username, password, email, phone)
+    VALUES ('user_3', 'password_3', 'user_3@example.com', '12345678903');
+    INSERT INTO users (username, password, email, phone)
+    VALUES ('user_4', 'password_4', 'user_4@example.com', '12345678904');
+    INSERT INTO users (username, password, email, phone)
+    VALUES ('user_5', 'password_5', 'user_5@example.com', '12345678905');
+    INSERT INTO users (username, password, email, phone)
+    VALUES ('user_6', 'password_6', 'user_6@example.com', '12345678906');
+    INSERT INTO users (username, password, email, phone)
+    VALUES ('user_7', 'password_7', 'user_7@example.com', '12345678907');
+    INSERT INTO users (username, password, email, phone)
+    VALUES ('user_8', 'password_8', 'user_8@example.com', '12345678908');
+    INSERT INTO users (username, password, email, phone)
+    VALUES ('user_9', 'password_9', 'user_9@example.com', '12345678909');
+    INSERT INTO users (username, password, email, phone)
+    VALUES ('user_10', 'password_10', 'user_10@example.com', '12345678900');
+    INSERT INTO users (username, password, email, phone)
+    VALUES ('user_11', 'password_11', 'user_11@example.com', '12345678901');
+    INSERT INTO users (username, password, email, phone)
+    VALUES ('user_12', 'password_12', 'user_12@example.com', '12345678902');
+    INSERT INTO users (username, password, email, phone)
+    VALUES ('user_13', 'password_13', 'user_13@example.com', '12345678903');
+    INSERT INTO users (username, password, email, phone)
+    VALUES ('user_14', 'password_14', 'user_14@example.com', '12345678904');
+    INSERT INTO users (username, password, email, phone)
+    VALUES ('user_15', 'password_15', 'user_15@example.com', '12345678905');
+    INSERT INTO users (username, password, email, phone)
+    VALUES ('user_16', 'password_16', 'user_16@example.com', '12345678906');
+    INSERT INTO users (username, password, email, phone)
+    VALUES ('user_17', 'password_17', 'user_17@example.com', '12345678907');
+    INSERT INTO users (username, password, email, phone)
+    VALUES ('user_18', 'password_18', 'user_18@example.com', '12345678908');
+    INSERT INTO users (username, password, email, phone)
+    VALUES ('user_19', 'password_19', 'user_19@example.com', '12345678909');
+    INSERT INTO users (username, password, email, phone)
+    VALUES ('user_20', 'password_20', 'user_20@example.com', '12345678900');
   case_1_student_manager_mysql.sql: |
     create database case_1_student_manager character set utf8;
     use case_1_student_manager;
@@ -407,7 +993,6 @@ data:
 
     COMMIT;
   case_3_order_wide_table_sqlite_wide.sql: "CREATE TABLE order_wide_table (\n\n    -- order_base\n    order_id TEXT, -- 订单ID\n    order_no TEXT, -- 订单编号\n    parent_order_no TEXT, -- 父订单编号\n    order_type INTEGER, -- 订单类型：1实物2虚拟3混合\n    order_status INTEGER, -- 订单状态\n    order_source TEXT, -- 订单来源\n    order_source_detail TEXT, -- 订单来源详情\n    create_time DATETIME, -- 创建时间\n    pay_time DATETIME, -- 支付时间\n    finish_time DATETIME, -- 完成时间\n    close_time DATETIME, -- 关闭时间\n    cancel_time DATETIME, -- 取消时间\n    cancel_reason TEXT, -- 取消原因\n    order_remark TEXT, -- 订单备注\n    seller_remark TEXT, -- 卖家备注\n    buyer_remark TEXT, -- 买家备注\n    is_deleted INTEGER, -- 是否删除\n    delete_time DATETIME, -- 删除时间\n    order_ip TEXT, -- 下单IP\n    order_platform TEXT, -- 下单平台\n    order_device TEXT, -- 下单设备\n    order_app_version TEXT, -- APP版本号\n\n    -- order_amount\n    currency TEXT, -- 货币类型\n    exchange_rate REAL, -- 汇率\n    original_amount REAL, -- 原始金额\n    discount_amount REAL, -- 优惠金额\n    coupon_amount REAL, -- 优惠券金额\n    points_amount REAL, -- 积分抵扣金额\n    shipping_amount REAL, -- 运费\n    insurance_amount REAL, -- 保价费\n    tax_amount REAL, -- 税费\n    tariff_amount REAL, -- 关税\n    payment_amount REAL, -- 实付金额\n    commission_amount REAL, -- 佣金金额\n    platform_fee REAL, -- 平台费用\n    seller_income REAL, -- 卖家实收\n    payment_currency TEXT, -- 支付货币\n    payment_exchange_rate REAL, -- 支付汇率\n\n    -- user_info\n    user_id TEXT, -- 用户ID\n    user_name TEXT, -- 用户名\n    user_nickname TEXT, -- 用户昵称\n    user_level INTEGER, -- 用户等级\n    user_type INTEGER, -- 用户类型\n    register_time DATETIME, -- 注册时间\n    register_source TEXT, -- 注册来源\n    mobile TEXT, -- 手机号\n    mobile_area TEXT, -- 手机号区号\n    email TEXT, -- 邮箱\n    is_vip INTEGER, -- 是否VIP\n    vip_level INTEGER, -- VIP等级\n    vip_expire_time DATETIME, -- VIP过期时间\n    user_age INTEGER, -- 用户年龄\n    user_gender INTEGER, -- 用户性别\n    user_birthday DATE, -- 用户生日\n    user_avatar TEXT, -- 用户头像\n    user_province TEXT, -- 用户所在省\n    user_city TEXT, -- 用户所在市\n    user_district TEXT, -- 用户所在区\n    last_login_time DATETIME, -- 最后登录时间\n    last_login_ip TEXT, -- 最后登录IP\n    user_credit_score INTEGER, -- 用户信用分\n    total_order_count INTEGER, -- 历史订单数\n    total_order_amount REAL, -- 历史订单金额\n\n    -- product_info\n    product_id TEXT, -- 商品ID\n    product_code TEXT, -- 商品编码\n    product_name TEXT, -- 商品名称\n    product_short_name TEXT, -- 商品短名称\n    product_type INTEGER, -- 商品类型\n    product_status INTEGER, -- 商品状态\n    category_id TEXT, -- 类目ID\n    category_name TEXT, -- 类目名称\n    category_path TEXT, -- 类目路径\n    brand_id TEXT, -- 品牌ID\n    brand_name TEXT, -- 品牌名称\n    brand_english_name TEXT, -- 品牌英文名\n    seller_id TEXT, -- 卖家ID\n    seller_name TEXT, -- 卖家名称\n    seller_type INTEGER, -- 卖家类型\n    shop_id TEXT, -- 店铺ID\n    shop_name TEXT, -- 店铺名称\n    product_price REAL, -- 商品价格\n    market_price REAL, -- 市场价\n    cost_price REAL, -- 成本价\n    wholesale_price REAL, -- 批发价\n    product_quantity INTEGER, -- 商品数量\n    product_unit TEXT, -- 商品单位\n    product_weight REAL, -- 商品重量(克)\n    product_volume REAL, -- 商品体积(cm³)\n    product_spec TEXT, -- 商品规格\n    product_color TEXT, -- 商品颜色\n    product_size TEXT, -- 商品尺寸\n    product_material TEXT, -- 商品材质\n    product_origin TEXT, -- 商品产地\n    product_shelf_life INTEGER, -- 保质期(天)\n    manufacture_date DATE, -- 生产日期\n    expiry_date DATE, -- 过期日期\n    batch_number TEXT, -- 批次号\n    product_barcode TEXT, -- 商品条码\n    warehouse_id TEXT, -- 发货仓库ID\n    warehouse_name TEXT, -- 发货仓库名称\n\n    -- address_info\n    receiver_name TEXT, -- 收货人姓名\n    receiver_mobile TEXT, -- 收货人手机\n    receiver_tel TEXT, -- 收货人电话\n    receiver_email TEXT, -- 收货人邮箱\n    receiver_country TEXT, -- 国家\n    receiver_province TEXT, -- 省份\n    receiver_city TEXT, -- 城市\n    receiver_district TEXT, -- 区县\n    receiver_street TEXT, -- 街道\n    receiver_address TEXT, -- 详细地址\n    receiver_zip TEXT, -- 邮编\n    address_type INTEGER, -- 地址类型\n    is_default INTEGER, -- 是否默认地址\n    longitude REAL, -- 经度\n    latitude REAL, -- 纬度\n    address_label TEXT, -- 地址标签\n\n    -- shipping_info\n    shipping_type INTEGER, -- 配送方式\n    shipping_method TEXT, -- 配送方式名称\n    shipping_company TEXT, -- 快递公司\n    shipping_company_code TEXT, -- 快递公司编码\n    shipping_no TEXT, -- 快递单号\n    shipping_time DATETIME, -- 发货时间\n    shipping_remark TEXT, -- 发货备注\n    expect_receive_time DATETIME, -- 预计送达时间\n    receive_time DATETIME, -- 收货时间\n    sign_type INTEGER, -- 签收类型\n    shipping_status INTEGER, -- 物流状态\n    tracking_url TEXT, -- 物流跟踪URL\n    is_free_shipping INTEGER, -- 是否包邮\n    shipping_insurance REAL, -- 运费险金额\n    shipping_distance REAL, -- 配送距离\n    delivered_time DATETIME, -- 送达时间\n    delivery_staff_id TEXT, -- 配送员ID\n    delivery_staff_name TEXT, -- 配送员姓名\n    delivery_staff_mobile TEXT, -- 配送员电话\n\n    -- payment_info\n    payment_id TEXT, -- 支付ID\n    payment_no TEXT, -- 支付单号\n    payment_type INTEGER, -- 支付方式\n    payment_method TEXT, -- 支付方式名称\n    payment_status INTEGER, -- 支付状态\n    payment_platform TEXT, -- 支付平台\n    transaction_id TEXT, -- 交易流水号\n    payment_time DATETIME, -- 支付时间\n    payment_account TEXT, -- 支付账号\n    payment_bank TEXT, -- 支付银行\n    payment_card_type TEXT, -- 支付卡类型\n    payment_card_no TEXT, -- 支付卡号\n    payment_scene TEXT, -- 支付场景\n    payment_client_ip TEXT, -- 支付IP\n    payment_device TEXT, -- 支付设备\n    payment_remark TEXT, -- 支付备注\n    payment_voucher TEXT, -- 支付凭证\n\n    -- promotion_info\n    promotion_id TEXT, -- 活动ID\n    promotion_name TEXT, -- 活动名称\n    promotion_type INTEGER, -- 活动类型\n    promotion_desc TEXT, -- 活动描述\n    promotion_start_time DATETIME, -- 活动开始时间\n    promotion_end_time DATETIME, -- 活动结束时间\n    coupon_id TEXT, -- 优惠券ID\n    coupon_code TEXT, -- 优惠券码\n    coupon_type INTEGER, -- 优惠券类型\n    coupon_name TEXT, -- 优惠券名称\n    coupon_desc TEXT, -- 优惠券描述\n    points_used INTEGER, -- 使用积分\n    points_gained INTEGER, -- 获得积分\n    points_multiple REAL, -- 积分倍率\n    is_first_order INTEGER, -- 是否首单\n    is_new_customer INTEGER, -- 是否新客\n    marketing_channel TEXT, -- 营销渠道\n    marketing_source TEXT, -- 营销来源\n    referral_code TEXT, -- 推荐码\n    referral_user_id TEXT, -- 推荐人ID\n\n    -- after_sale_info\n    refund_id TEXT, -- 退款ID\n    refund_no TEXT, -- 退款单号\n    refund_type INTEGER, -- 退款类型\n    refund_status INTEGER, -- 退款状态\n    refund_reason TEXT, -- 退款原因\n    refund_desc TEXT, -- 退款描述\n    refund_time DATETIME, -- 退款时间\n    refund_amount REAL, -- 退款金额\n    return_shipping_no TEXT, -- 退货快递单号\n    return_shipping_company TEXT, -- 退货快递公司\n    return_shipping_time DATETIME, -- 退货时间\n    refund_evidence TEXT, -- 退款凭证\n    complaint_id TEXT, -- 投诉ID\n    complaint_type INTEGER, -- 投诉类型\n    complaint_status INTEGER, -- 投诉状态\n    complaint_content TEXT, -- 投诉内容\n    complaint_time DATETIME, -- 投诉时间\n    complaint_handle_time DATETIME, -- 投诉处理时间\n    complaint_handle_result TEXT, -- 投诉处理结果\n    evaluation_score INTEGER, -- 评价分数\n    evaluation_content TEXT, -- 评价内容\n    evaluation_time DATETIME, -- 评价时间\n    evaluation_reply TEXT, -- 评价回复\n    evaluation_reply_time DATETIME, -- 评价回复时间\n    evaluation_images TEXT, -- 评价图片\n    evaluation_videos TEXT, -- 评价视频\n    is_anonymous INTEGER, -- 是否匿名评价\n\n    -- invoice_info\n    invoice_type INTEGER, -- 发票类型\n    invoice_title TEXT, -- 发票抬头\n    invoice_content TEXT, -- 发票内容\n    tax_no TEXT, -- 税号\n    invoice_amount REAL, -- 发票金额\n    invoice_status INTEGER, -- 发票状态\n    invoice_time DATETIME, -- 开票时间\n    invoice_number TEXT, -- 发票号码\n    invoice_code TEXT, -- 发票代码\n    company_name TEXT, -- 单位名称\n    company_address TEXT, -- 单位地址\n    company_tel TEXT, -- 单位电话\n    company_bank TEXT, -- 开户银行\n    company_account TEXT, -- 银行账号\n\n    -- delivery_time_info\n    expect_delivery_time DATETIME, -- 期望配送时间\n    delivery_period_type INTEGER, -- 配送时段类型\n    delivery_period_start TEXT, -- 配送时段开始\n    delivery_period_end TEXT, -- 配送时段结束\n    delivery_priority INTEGER, -- 配送优先级\n\n    -- tag_info\n    order_tags TEXT, -- 订单标签\n    user_tags TEXT, -- 用户标签\n    product_tags TEXT, -- 商品标签\n    risk_level INTEGER, -- 风险等级\n    risk_tags TEXT, -- 风险标签\n    business_tags TEXT, -- 业务标签\n\n    -- commercial_info\n    gross_profit REAL, -- 毛利\n    gross_profit_rate REAL, -- 毛利率\n    settlement_amount REAL, -- 结算金额\n    settlement_time DATETIME, -- 结算时间\n    settlement_cycle INTEGER, -- 结算周期\n    settlement_status INTEGER, -- 结算状态\n    commission_rate REAL, -- 佣金比例\n    platform_service_fee REAL, -- 平台服务费\n    ad_cost REAL, -- 广告费用\n    promotion_cost REAL -- 推广费用\n);\n\n-- 插入示例数据\nINSERT INTO order_wide_table (\n    -- 基础订单信息\n    order_id, order_no, order_type, order_status, create_time, order_source,\n    -- 订单金额\n    original_amount, payment_amount, shipping_amount,\n    -- 用户信息\n    user_id, user_name, user_level, mobile,\n    -- 商品信息\n    product_id, product_name, product_quantity, product_price,\n    -- 收货信息\n    receiver_name, receiver_mobile, receiver_address,\n    -- 物流信息\n    shipping_no, shipping_status,\n    -- 支付信息\n    payment_type, payment_status,\n    -- 营销信息\n    promotion_id, coupon_amount,\n    -- 发票信息\n    invoice_type, invoice_title\n) VALUES \n(\n    'ORD20240101001', 'NO20240101001', 1, 2, '2024-01-01 10:00:00', 'APP',\n    199.99, 188.88, 10.00,\n    'USER001', '张三', 2, '13800138000',\n    'PRD001', 'iPhone 15 手机壳', 2, 89.99,\n    '李四', '13900139000', '北京市朝阳区XX路XX号',\n    'SF123456789', 1,\n    1, 1,\n    'PROM001', 20.00,\n    1, '个人'\n),\n(\n    'ORD20240101002', 'NO20240101002', 1, 1, '2024-01-01 11:00:00', 'H5',\n    299.99, 279.99, 0.00,\n    'USER002', '王五', 3, '13700137000',\n    'PRD002', 'AirPods Pro 保护套', 1, 299.99,\n    '赵六', '13600136000', '上海市浦东新区XX路XX号',\n    'YT987654321', 2,\n    2, 2,\n    'PROM002', 10.00,\n    2, '上海科技有限公司'\n),\n(\n    'ORD20240101003', 'NO20240101003', 2, 3, '2024-01-01 12:00:00', 'WEB',\n    1999.99, 1899.99, 0.00,\n    'USER003', '陈七', 4, '13500135000',\n    'PRD003', 'MacBook Pro 电脑包', 1, 1999.99,\n    '孙八', '13400134000', '广州市天河区XX路XX号',\n    'JD123123123', 3,\n    3, 1,\n    'PROM003', 100.00,\n    1, '个人'\n);\n"
-  dbgpt.sql: ""
   test_case.md: "# 测试问题\n\n## 场景一 \n\n学校管理系统，主要测试SQL助手的联合查询，条件查询和排序功能。\n\n我们的数据库有三个表：学生表、课程表和成绩表。我们要测试SQL助手能否处理复杂的SQL查询，包括连接多个表，按照一定的条件筛选数据，以及对结果进行排序。\n\n### Q1\n\n查询所有学生的姓名，专业和成绩，按成绩降序排序\n\nSQL：\n```sql\nSELECT students.student_name, students.major, scores.score\nFROM students\nJOIN scores ON students.student_id = scores.student_id\nORDER BY scores.score DESC;\n```\n\n### Q2\n\n查询 \"计算机科学\" 专业的学生的平均成绩\n\nSQL：\n```sql\nSELECT AVG(scores.score) as avg_score\nFROM students\nJOIN scores ON students.student_id = scores.student_id\nWHERE students.major = '计算机科学';\n```\n\n### Q3\n\n查询哪些学生在 \"2023年春季\" 学期的课程学分总和超过2学分\n\n```sql\nSELECT students.student_name\nFROM students\nJOIN scores ON students.student_id = scores.student_id\nJOIN courses ON scores.course_id = courses.course_id\nWHERE scores.semester = '2023年春季'\nGROUP BY students.student_id\nHAVING SUM(courses.credit) > 2;\n```\n\n## 场景二：电商系统，主要测试SQL助手的数据聚合和分组功能。\n\n我们的数据库有三个表：用户表、商品表和订单表。我们要测试SQL助手能否处理复杂的SQL查询，包括对数据进行聚合和分组。\n\n### Q1\n\n查询每个用户的总订单数量\n\nSQL:\n\n```sql\nSELECT users.user_name, COUNT(orders.order_id) as order_count\nFROM users\nJOIN orders ON users.user_id = orders.user_id\nGROUP BY users.user_id;\n```\n\n### Q2\n\n查询每种商品的总销售额\n\n```sql\nSELECT products.product_name, SUM(products.product_price * orders.quantity) as total_sales\nFROM products\nJOIN orders ON products.product_id = orders.product_id\nGROUP BY products.product_id;\n```\n\n### Q3\n\n查询2023年最受欢迎的商品（订单数量最多的商品）\n\n```sql\nSELECT products.product_name\nFROM products\nJOIN orders ON products.product_id = orders.product_id\nWHERE YEAR(orders.order_date) = 2023\nGROUP BY products.product_id\nORDER BY COUNT(orders.order_id) DESC\nLIMIT 1;\n```"
   test_case_info_mysql.sql: |
     create database test_case_info character set utf8;
@@ -481,8 +1066,3 @@ data:
     USE mysql;
     UPDATE user SET Host='%' WHERE User='root';
     FLUSH PRIVILEGES;
-kind: ConfigMap
-metadata:
-  labels:
-    io.kompose.service: db
-  name: db-cm2
