@@ -29,4 +29,3 @@ logs:
 port-forward:
 	@echo "用法: make port-forward SERVICE=webserver LOCAL_PORT=5670 REMOTE_PORT=5670"
 	kubectl port-forward svc/$${SERVICE} $${LOCAL_PORT}:$${REMOTE_PORT} -n $(NAMESPACE)
-
