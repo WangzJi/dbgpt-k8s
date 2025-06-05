@@ -47,7 +47,6 @@ This repository provides a complete Kubernetes deployment solution for [DB-GPT](
    ```bash
    make delete
    ```
-
 ---
 
 ## Makefile Main Commands
@@ -133,7 +132,7 @@ Feel free to submit Issues and PRs to help improve this project.
 
 ## License
 
-[Apache License 2.0](LICENSE)
+[MIT License](LICENSE)
 
 ---
 
