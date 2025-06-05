@@ -1,125 +1,143 @@
-# DB-GPT K8s Deployment
+# DB-GPT Kubernetes One-Click Deployment Guide
 
-这个仓库包含了 [DB-GPT](https://github.com/eosphoros-ai/DB-GPT) 的 Kubernetes 部署配置文件。DB-GPT 是一个开源的数据库智能助手，基于大语言模型实现。
+This repository provides a complete Kubernetes deployment solution for [DB-GPT](https://github.com/eosphoros-ai/DB-GPT), supporting one-click deployment, secure secret management, persistent storage, and production best practices.
 
-## 功能特点
+---
 
-- 完整的 Kubernetes 部署配置
-- 支持 MySQL 数据库
-- 支持 SiliconFlow API 集成
-- 数据持久化存储
-- 配置文件管理
-- 服务自动发现
+## Features
+- One-click deployment for database and web services
+- Supports OpenAI Proxy API integration
+- Secure API Key management via Kubernetes Secret
+- Multiple persistent volumes for data and models
+- Flexible config and model mounting
+- Automated DevOps with Makefile
 
+---
 
-## 快速开始
+## Quick Start
 
-### 前置条件
+### Prerequisites
+- Kubernetes cluster (v1.19+ recommended)
+- kubectl installed
+- make installed
 
-- Kubernetes 集群 (v1.19+)
-- kubectl 命令行工具
-- 已安装 Helm (可选)
+### One-Click Deployment Steps
 
-### 部署步骤
+1. **Create API Key Secret**
+   ```bash
+   make create-secret KEY=your_real_key
+   ```
+2. **Deploy all resources**
+   ```bash
+   make all
+   ```
+3. **Check resource status**
+   ```bash
+   make status
+   ```
+4. **View Pod logs**
+   ```bash
+   make logs POD=pod-name
+   ```
+5. **Port-forward for local debugging**
+   ```bash
+   make port-forward SERVICE=webserver LOCAL_PORT=5670 REMOTE_PORT=5670
+   ```
+6. **Delete all resources**
+   ```bash
+   make delete
+   ```
 
-1. 配置环境变量
-```bash
-# 创建 secret 用于存储 API key
-kubectl create secret generic siliconflow-secret \
-  --from-literal=api-key=your-api-key
-```
+---
 
-2. 部署数据库
-```bash
-kubectl apply -f k8s/database/
-```
+## Makefile Main Commands
 
-3. 部署 Web 服务
-```bash
-kubectl apply -f k8s/service/
-```
+- `make all`: Create namespace and apply all resources
+- `make create-secret KEY=xxx`: Create/update API Key Secret
+- `make status`: View all resource status
+- `make logs POD=xxx`: View logs for a specific Pod
+- `make port-forward SERVICE=xxx LOCAL_PORT=local REMOTE_PORT=container`: Port-forward
+- `make delete`: Delete all resources
 
-4. 验证部署
-```bash
-kubectl get pods
-kubectl get services
-```
+---
 
-## 配置说明
+## Directory Structure
 
-### 数据库配置
+- `database/`: Database YAMLs (MySQL, PVC, ConfigMap, etc.)
+- `service/`: Web service YAMLs (Deployment, Service, PVC, ConfigMap, etc.)
+- `Makefile`: One-click DevOps script
 
-- 数据库服务端口：3306
-- 默认用户名：root
-- 默认密码：aa123456
-- 数据持久化：使用 PVC 存储
+---
 
-### Web 服务配置
+## Secret Management (Recommended for Production)
 
-- 服务端口：5670
-- 配置文件：通过 ConfigMap 管理
-- 数据持久化：使用多个 PVC 存储
+API keys and other sensitive info are managed via Kubernetes Secret and injected as environment variables. Config files can reference them as `${env:SILICONFLOW_API_KEY}`.
 
-## 环境变量
+- Create Secret:
+  ```bash
+  make create-secret KEY=your_real_key
+  ```
+- Deployment example:
+  ```yaml
+  env:
+    - name: SILICONFLOW_API_KEY
+      valueFrom:
+        secretKeyRef:
+          name: siliconflow-api-key
+          key: SILICONFLOW_API_KEY
+  ```
 
-| 变量名 | 说明 | 默认值 |
-|--------|------|--------|
-| MYSQL_DATABASE | 数据库名称 | dbgpt |
-| MYSQL_HOST | 数据库主机 | db |
-| MYSQL_PASSWORD | 数据库密码 | aa123456 |
-| MYSQL_PORT | 数据库端口 | 3306 |
-| MYSQL_USER | 数据库用户 | root |
-| SILICONFLOW_API_KEY | SiliconFlow API 密钥 | - |
+---
 
-## 存储配置
+## Persistent Volumes (PVC)
 
-| PVC 名称 | 用途 | 默认大小 |
-|----------|------|----------|
-| dbgpt-myql-db | 数据库存储 | 100Mi |
-| webserver-claim1 | Web 服务数据 | 100Mi |
-| webserver-claim2 | Web 服务模型 | 100Mi |
-| dbgpt-data | DB-GPT 数据 | 100Mi |
-| dbgpt-message | DB-GPT 消息 | 100Mi |
+| PVC Name            | Purpose         | Default Size |
+|---------------------|-----------------|-------------|
+| dbgpt-myql-db       | MySQL database  | 10Gi        |
+| webserver-claim1    | Web data        | 10Gi        |
+| webserver-claim2    | Web models      | 10Gi        |
+| dbgpt-data          | DB-GPT data     | 10Gi        |
+| dbgpt-message       | DB-GPT messages | 10Gi        |
 
-## 服务说明
+> Note: Tencent Cloud CBS requires at least 10Gi per volume.
 
-### 数据库服务
+---
 
-数据库服务使用 MySQL 8.0，主要配置包括：
-- 字符集：utf8mb4
-- 排序规则：utf8mb4_unicode_ci
-- 认证插件：mysql_native_password
+## Main Environment Variables
 
-### Web 服务
+| Name                | Description         | Default     |
+|---------------------|--------------------|-------------|
+| MYSQL_DATABASE      | Database name      | dbgpt       |
+| MYSQL_HOST          | Database host      | db          |
+| MYSQL_PASSWORD      | Database password  | aa123456    |
+| MYSQL_PORT          | Database port      | 3306        |
+| MYSQL_USER          | Database user      | root        |
+| SILICONFLOW_API_KEY | API key (Secret)   | -           |
 
-Web 服务提供以下功能：
-- DB-GPT API 接口
-- 数据库智能助手
-- 模型管理
-- 数据持久化
+---
 
-## 注意事项
+## Production Recommendations
+- Set resource requests/limits to avoid contention
+- Configure liveness/readiness probes for high availability
+- Use cloud provider HA storage classes for PVC
+- Use Ingress for public access (if needed)
+- Always manage sensitive info with Secret
 
-1. 部署前请确保：
-   - 已正确配置 SiliconFlow API Key
-   - 存储类（StorageClass）已正确配置
-   - 集群资源充足
+---
 
-2. 生产环境建议：
-   - 调整 PVC 存储大小
-   - 配置资源限制
-   - 设置适当的副本数
-   - 配置健康检查
-   - 配置网络策略
+## Contribution & Support
 
-## 贡献指南
+Feel free to submit Issues and PRs to help improve this project.
 
-欢迎提交 Issue 和 Pull Request 来帮助改进这个项目。
+---
 
-## 许可证
+## License
 
 [Apache License 2.0](LICENSE)
 
-## 相关项目
+---
 
-- [DB-GPT](https://github.com/eosphoros-ai/DB-GPT) - DB-GPT 主项目
+## Related Links
+- [DB-GPT Main Project](https://github.com/eosphoros-ai/DB-GPT)
+![GitHub stars](https://img.shields.io/github/stars/eosphoros-ai/DB-GPT)
+![License](https://img.shields.io/github/license/eosphoros-ai/DB-GPT)

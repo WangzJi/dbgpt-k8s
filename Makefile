@@ -2,7 +2,7 @@ NAMESPACE=dbgpt
 SERVICE_DIR=service
 DATABASE_DIR=database
 
-.PHONY: all create-ns apply delete status logs port-forward
+.PHONY: all create-ns apply delete status logs port-forward create-secret
 
 all: create-ns apply
 
@@ -29,3 +29,8 @@ logs:
 port-forward:
 	@echo "用法: make port-forward SERVICE=webserver LOCAL_PORT=5670 REMOTE_PORT=5670"
 	kubectl port-forward svc/$${SERVICE} $${LOCAL_PORT}:$${REMOTE_PORT} -n $(NAMESPACE)
+
+create-secret:
+	@echo "用法: make create-secret KEY=your_key"
+	kubectl create secret generic siliconflow-api-key --from-literal=SILICONFLOW_API_KEY=$${KEY} -n $(NAMESPACE) --dry-run=client -o yaml | kubectl apply -f -
+	

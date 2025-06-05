@@ -604,7 +604,7 @@ data:
 
     [[models.embeddings]]
     name = "BAAI/bge-m3"
-    provider = "proxy/siliconflow"
+    provider = "proxy/openai"
     api_key = "${env:SILICONFLOW_API_KEY}"
 
     [[models.rerankers]]
