@@ -4,9 +4,10 @@ metadata:
   labels:
     io.kompose.service: dbgpt-data
   name: dbgpt-data
+  namespace: dbgpt
 spec:
   accessModes:
     - ReadWriteOnce
   resources:
     requests:
-      storage: 100Mi
+      storage: 10Gi

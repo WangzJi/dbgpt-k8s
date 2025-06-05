@@ -4,9 +4,10 @@ metadata:
   labels:
     io.kompose.service: webserver-claim2
   name: webserver-claim2
+  namespace: dbgpt
 spec:
   accessModes:
     - ReadWriteOnce
   resources:
     requests:
-      storage: 100Mi
+      storage: 10Gi
